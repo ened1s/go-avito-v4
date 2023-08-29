@@ -21,7 +21,7 @@ func main() {
 	//DELETE localhost:1234/segm?slug=add1
 
 	router.HandleFunc(userURL, ChangeUserSegments).Methods("PATCH")
-	//PATCH localhost:1234/user?add_seg=add1,add2&del_seg=del1,del2&user_id=123
+	//PATCH localhost:1234/user?add_seg=add1,add2&del_seg=add3,add4&user_id=123
 
 	router.HandleFunc(userURL, GetUserSegments).Methods("GET")
 	//GET localhost:1234/user?user_id=123

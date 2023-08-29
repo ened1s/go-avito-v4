@@ -72,10 +72,10 @@ func CreateSegment(w http.ResponseWriter, r *http.Request) {
 			//пример: insert into segments (slug) values ('slugname')
 			if err != nil {
 				//panic(err)
-				fmt.Println("Ошибка: не удалось добавить сегмент ", slug)
-				CreateResponseJSON(w, GetRequestSegment{Type: "error", Message: "Не удалось добавить сегмент " + slug})
+				fmt.Println("Ошибка: не удалось добавить сегмент", slug)
+				CreateResponseJSON(w, GetRequestSegment{Type: "error", Message: "Добавление сегмента " + slug + ":error"})
 			} else {
-				CreateResponseJSON(w, GetRequestSegment{Type: "success", Message: "Удалось добавить сегмент " + slug})
+				CreateResponseJSON(w, GetRequestSegment{Type: "success", Message: "Добавление сегмента " + slug + ":success"})
 			}
 		} else {
 			fmt.Printf("Сегмент %s существует в таблице \n", slug)
@@ -92,13 +92,17 @@ func DeleteSegment(w http.ResponseWriter, r *http.Request) {
 	if errDB == nil {
 		slug := r.URL.Query().Get("slug")
 
-		w.Write([]byte("this is DeleteSegment"))
+		w.Write([]byte("this is DeleteSegment\n"))
 
 		_, err := db.Exec("DELETE FROM segments WHERE slug=($1)", slug)
-		//DELETE FROM segments WHERE slug='slugname'
+		//DELETE FROM segments WHERE slug='add1'
 		if err != nil {
 			//panic(err)
-			fmt.Println("Ошибка: не удалось выполнить удаление сегмента ", slug)
+			fmt.Println("Ошибка: не удалось выполнить удаление сегмента", slug)
+			CreateResponseJSON(w, GetRequestSegment{Type: "error", Message: "Удаление сегмента " + slug + ":error"})
+		} else {
+			fmt.Println("Ошибка: удалось выполнить удаление сегмента", slug)
+			CreateResponseJSON(w, GetRequestSegment{Type: "success", Message: "Удаление сегмента " + slug + ":success"})
 		}
 	}
 }
@@ -112,31 +116,48 @@ func ChangeUserSegments(w http.ResponseWriter, r *http.Request) {
 		str_del_seg := r.URL.Query().Get("del_seg")
 		user_id := r.URL.Query().Get("user_id")
 
-		//формируем строковый массив сегментов, которые нужно добавить,
-		// и сегментов, которые нужно удалить
-		add_seg := strings.FieldsFunc(str_add_seg, Split)
-		del_seg := strings.FieldsFunc(str_del_seg, Split)
+		str_user_id, err := strconv.Atoi(user_id)
 
-		w.Write([]byte("this is ChangeUserSegments"))
+		if err != nil {
+			//panic(err)
+			fmt.Printf("Ошибка: некорректный id пользователя \"%s\" \n", user_id)
+			CreateResponseJSON(w, GetRequestSegment{Type: "error", UserID: str_user_id, Message: "Некорректный id=" + user_id})
+		} else {
+			//формируем строковый массив сегментов, которые нужно добавить,
+			// и сегментов, которые нужно удалить
+			add_seg := strings.FieldsFunc(str_add_seg, Split)
+			del_seg := strings.FieldsFunc(str_del_seg, Split)
 
-		//fmt.Println(add_seg, del_seg, user_id)
+			var messageArray []string
 
-		//формируем запросы на добавление пользователя в сегменты
-		for i := range add_seg {
-			_, err := db.Exec("INSERT INTO usersegments VALUES ($1,$2)", user_id, add_seg[i])
-			if err != nil {
-				//panic(err)
-				fmt.Printf("Ошибка: не удалось добавить пользователя %s в сегмент %s \n", user_id, add_seg[i])
+			w.Write([]byte("this is ChangeUserSegments\n"))
+
+			//fmt.Println(add_seg, del_seg, user_id)
+
+			//формируем запросы на добавление пользователя в сегменты
+			for i := range add_seg {
+				_, err := db.Exec("INSERT INTO usersegments VALUES ($1,$2)", user_id, add_seg[i])
+				if err != nil {
+					//panic(err)
+					fmt.Printf("Ошибка: не удалось добавить пользователя %s в сегмент %s \n", user_id, add_seg[i])
+					messageArray = append(messageArray, "Добавление в пользователя в сегмент "+add_seg[i]+": error")
+				} else {
+					messageArray = append(messageArray, "Добавление в пользователя в сегмент "+add_seg[i]+": success")
+				}
 			}
-		}
 
-		//формируем запросы на удаление пользователя из сегментов
-		for i := range del_seg {
-			_, err := db.Exec("DELETE FROM usersegments WHERE (user_id=$1 and slug=$2)", user_id, del_seg[i])
-			if err != nil {
-				//panic(err)
-				fmt.Printf("Ошибка: не удалось удалить пользователя %s из сегмента %s \n", user_id, del_seg[i])
+			//формируем запросы на удаление пользователя из сегментов
+			for i := range del_seg {
+				_, err := db.Exec("DELETE FROM usersegments WHERE (user_id=$1 and slug=$2)", user_id, del_seg[i])
+				if err != nil {
+					//panic(err)
+					fmt.Printf("Ошибка: не удалось удалить пользователя %s из сегмента %s \n", user_id, del_seg[i])
+					messageArray = append(messageArray, "Удаление пользователя из сегмента "+del_seg[i]+": error")
+				} else {
+					messageArray = append(messageArray, "Удаление пользователя из сегмента "+del_seg[i]+": success")
+				}
 			}
+			CreateResponseJSON(w, GetRequestSegment{Type: "success", UserID: str_user_id, Message: strings.Join(messageArray, ", ")})
 		}
 	}
 }
